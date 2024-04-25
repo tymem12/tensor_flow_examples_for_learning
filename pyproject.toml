@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "tensor-flow-examples-for-learning"
+version = "0.1.0"
+description = ""
+authors = ["Tymek <tymekzapala12@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "~3.11.0"
+tensorflow-io-gcs-filesystem = "0.31.0"
+tensorflow = "2.12.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

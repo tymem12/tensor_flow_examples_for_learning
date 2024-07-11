@@ -5,6 +5,21 @@ Dokładność wyższa niż 93.55% na zbiorze testowym w ciągu 200 epok
 225 sekund na epokę na GTX 1080Ti
 
 Densely Connected Convolutional Networks
+
+The idea is the same as the RestNet but the idea is that we use the bottleneck layer before the standard function used in RestNet (BN-ReLU- Conv2D(3))
+- as the first block 
+- num_filters_bef_dense_block = 2 * growth rate. This is the base number of filters
+
+Dense block - bootleneck -> CNN layer (CNN layer I mean BN- ReLU - Conv2D (3)) -> concatenation. Since it is bottle neck we know that:
+- in every bottleneck we have the filters equal to 4 * growth rate
+- in every block following the bottleneck we have the filter equal to the growth rate
+
+Between dense blocks we have to:
+- increment number of filters by num_bottleneck_layers * growth_rate and then multiply it by the compression_factor (0 < c_f < 1)
+- then we have the "transition layer" which is
+    - BN - Conv2D(1) with the number of filters calculated
+    - AveragePooling2D
+
 https://arxiv.org/pdf/1608.06993.pdf
 http://openaccess.thecvf.com/content_cvpr_2017/papers/
     Huang_Densely_Connected_Convolutional_CVPR_2017_paper.pdf
@@ -31,12 +46,9 @@ import os
 import numpy as np
 import math
 
-# parametry uczenia
 batch_size = 32
 epochs = 200
 data_augmentation = True
-
-# parametry sieci
 num_classes = 10
 num_dense_blocks = 3
 use_max_pool = False
@@ -110,7 +122,7 @@ x = concatenate([inputs, x])
 # stos bloków gęstych połączonych warstwami przekształcającymi
 for i in range(num_dense_blocks):
     # blok gęsty jest stosem warstw zwężających
-    for j in range(num_bottleneck_layers):
+    for j in range(num_bottleneck_layers): # 
         y = BatchNormalization()(x)
         y = Activation('relu')(y)
         y = Conv2D(4 * growth_rate,
@@ -134,7 +146,7 @@ for i in range(num_dense_blocks):
         continue
 
     # warstwa przekształcająca kompresuje liczbę map cech i redukuje rozmiar
-    num_filters_bef_dense_block += num_bottleneck_layers * growth_rate
+    num_filters_bef_dense_block += num_bottleneck_layers * growth_rate  
     num_filters_bef_dense_block = int(num_filters_bef_dense_block * compression_factor)
     y = BatchNormalization()(x)
     y = Conv2D(num_filters_bef_dense_block,

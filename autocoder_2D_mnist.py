@@ -156,14 +156,11 @@ shape = K.int_shape(x)
 x = Flatten()(x)
 latent = Dense(latent_dim, name='latent_vector')(x)
 
-# tworzymy instancję modelu kodera
 encoder = Model(inputs, latent, name='encoder')
 encoder.summary()
 plot_model(encoder, to_file='encoder.png', show_shapes=True)
 
-# budujemy model dekodera
 latent_inputs = Input(shape=(latent_dim,), name='decoder_input')
-# używamy zapisanego wcześniej kształtu (7,7,64) 
 x = Dense(shape[1] * shape[2] * shape[3])(latent_inputs)
 # z wektora do odpowiedniego kształtu lub transponowanego conv
 x = Reshape((shape[1], shape[2], shape[3]))(x)

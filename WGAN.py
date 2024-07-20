@@ -1,0 +1,222 @@
+'''Uczenie sieci WGAN na zbiorze MNIST z użyciem Keras
+
+Uczenie sieci GAN z użyciem funkcji straty Wasserteina.
+Przebiega podobnie jak w przypadku DCGAN z wyjątkiem tego, że 
+na wyjściu jest liniowa funkcja aktywacji oraz używamy n_krytyka treningów dla sieci współzawodniczącej. Wagi dyskryminatora są przycinane by był spełniony warunek Lipschitza.
+
+[1] Radford, Alec, Luke Metz, and Soumith Chintala.
+"Unsupervised representation learning with deep convolutional
+generative adversarial networks." arXiv preprint arXiv:1511.06434 (2015).
+
+[2] Arjovsky, Martin, Soumith Chintala, and Léon Bottou.
+"Wasserstein GAN." arXiv preprint arXiv:1701.07875 (2017).
+'''
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from keras.layers import Input
+from keras.optimizers import RMSprop
+from keras.models import Model
+from keras.datasets import mnist
+from keras import backend as K
+from keras.models import load_model
+
+import numpy as np
+import argparse
+
+import sys
+sys.path.append("..")
+from lib import gan
+
+def train(models, x_train, params):
+    """Uczenie dyskryminatora i sieci współzawodniczącej
+    Naprzemienne uczenie partiami danych sieci dyskryminatora i oponenta
+    Najpierw uczymy dyskryminator prawidłowo opisanymi 
+    prawdziwymi i fałszywymi obrazami n_krytyka razy.
+    Wagi dyskryminatora są przycinane zgodnie z wymaganiem warunku Lipschitza.
+    Następnie uczony jest (przez oponenta) generator,
+    obrazami fałszywymi oznaczonymi jako prawdziwe.
+    Generowanie próbek obrazów co save_interval
+
+    Argumenty
+        models (list): generator, dyskryminator,
+            model sieci współzawodniczącej
+        x_train (tensor): obrazy uczące
+        params (list) : parametry sieci
+    """
+    # model GAN
+
+    generator, discriminator, adversarial = models
+    # parametry sieci
+    (batch_size, latent_size, n_critic, 
+            clip_value, train_steps, model_name) = params
+    # obraz parametrów generatora jest zachowywany co 500 kroków
+    save_interval = 500
+    # wektor szumu, aby sprawdzić, 
+    # jak zmieniają się wyjścia generatora w czasie treningu
+    noise_input = np.random.uniform(-1.0,
+                                    1.0, 
+                                    size=[16, latent_size])
+    # liczba elementów zbioru uczącego
+    train_size = x_train.shape[0]
+    # etykiety danych rzeczywistych
+    real_labels = np.ones((batch_size, 1))
+    for i in range(train_steps):
+    # etykiety danych rzeczywistych
+        loss = 0
+        acc = 0
+        for _ in range(n_critic):
+            # uczenie dyskryminatora dla 1 partii danych
+            # 1 partia prawdziwych (etykieta = 1.0) i
+            # fałszywych obrazów (etykieta = –1.0)
+            # losowy wybór obrazów prawdziwych ze zbioru
+            rand_indexes = np.random.randint(0,
+                                             train_size, 
+                                             size=batch_size)
+            real_images = x_train[rand_indexes]
+            # generowanie przez generator fałszywych obrazów z szumu 
+            # generowanie szumu jako rozkładu jednostajnego
+            noise = np.random.uniform(-1.0,
+                                      1.0,
+                                      size=[batch_size, latent_size])
+            fake_images = generator.predict(noise)
+
+            # uczenie sieci dyskryminatora: dane prawdziwe etykieta = 1, fałszywe etykieta = –1
+            # zamiast mieszanych partii danych: 1 prawdziwa i l fałszywa,
+            # uczenie najpierw z 1 partią prawdziwych, potem 1 partią fałszywych obrazów
+            # ta poprawka zapobiega zanikaniu gradientów ze względu na przeciwne znaki
+            # etykiet danych prawdziwych i fałszywych (to znaczy +1 i  –1) oraz
+            # mały rozmiar wag z powodu przycinania
+
+            real_loss, real_acc = \
+                discriminator.train_on_batch(real_images,
+                                             real_labels)
+            fake_loss, fake_acc = \
+                discriminator.train_on_batch(fake_images,
+                                             -real_labels)
+            # skumulowana średnia straty i dokładności
+            loss += 0.5 * (real_loss + fake_loss)
+            acc += 0.5 * (real_acc + fake_acc)
+
+            # przycięcie wag dyskryminatora, by spełnić warunek Lipschitza
+            for layer in discriminator.layers:
+                weights = layer.get_weights()
+                weights = [np.clip(weight,
+                                   -clip_value,
+                                   clip_value) for weight in weights]
+                layer.set_weights(weights)
+
+        # średnia strata i dokładność na iterację uczącą n_krytyka
+        loss /= n_critic
+        acc /= n_critic
+        log = "%d: [discriminator loss: %f, acc: %f]" % (i, loss, acc)
+
+        # uczenie sieci dla 1 próbki, 1 próbka obrazów fałszywych z etykietą = 1.0
+        # ponieważ wagi dyskryminatora są zamrożone, tylko generator jest uczony
+        # generowanie szumu z użyciem rozkładu jednostajnego
+
+        noise = np.random.uniform(-1.0,
+                                  1.0,
+                                  size=[batch_size, latent_size])
+        # uczenie sieci współzawodniczącej
+        # zauważ, że w przeciwieństwie do uczenia dyskryminatora,
+        # nie zapisujemy fałszywych obrazów do zmiennej, są przekazywane na wejścia
+        # dyskryminatora sieci współzawodniczącej w celu klasyfikowania
+        # obrazy fałszywe są oznaczone jako prawdziwe
+        # zapis straty i dokładności
+        loss, acc = adversarial.train_on_batch(noise, real_labels)
+        log = "%s [adversarial loss: %f, acc: %f]" % (log, loss, acc)
+        print(log)
+        if (i + 1) % save_interval == 0:
+            # okresowy wydruk obrazów generatora
+            gan.plot_images(generator,
+                            noise_input=noise_input,
+                            show=False,
+                            step=(i + 1),
+                            model_name=model_name)
+
+    # zapisanie modelu wyuczonego generatora
+    # wytrenowany generator może być ponownie użyty
+    # do generowania cyfr MNIST w przyszłości
+    generator.save(model_name + ".h5")
+
+
+def wasserstein_loss(y_label, y_pred):
+    return -K.mean(y_label * y_pred)
+
+
+def build_and_train_models():
+    """Załadowanie zbioru danych, skonstruowanie dyskryminatora WGAN,
+    generatora i modelu sieci współzawodniczącej, wywołanie procedury uczenia WGAN
+    """
+    # załadowanie zbioru MNIST
+    (x_train, _), (_, _) = mnist.load_data()
+
+    # zmiana kształtu danych dla CNN na (28, 28, 1) i normalizacja
+    image_size = x_train.shape[1]
+    x_train = np.reshape(x_train, [-1, image_size, image_size, 1])
+    x_train = x_train.astype('float32') / 255
+
+    model_name = "wgan_mnist"
+    # parametry sieci
+    # wektor niejawny lub wektor z ma 100 wymiarów
+    latent_size = 100
+    # hiperparametry z artykułu o WGAN [2]
+    n_critic = 5
+    clip_value = 0.01
+    batch_size = 64
+    lr = 5e-5
+    train_steps = 40000
+    input_shape = (image_size, image_size, 1)
+
+    # tworzenie modelu dyskryminatora
+    inputs = Input(shape=input_shape, name='discriminator_input')
+    # w WGAN użyto liniowej funkcji aktywacji
+    discriminator = gan.discriminator(inputs, activation='linear')
+    optimizer = RMSprop(lr=lr)
+    # w WGAN używana jest funkcja straty Wassersteina
+    discriminator.compile(loss=wasserstein_loss,
+                          optimizer=optimizer,
+                          metrics=['accuracy'])
+    discriminator.summary()
+
+    # budowanie modelu generatora
+    input_shape = (latent_size, )
+    inputs = Input(shape=input_shape, name='z_input')
+    generator = gan.generator(inputs, image_size)
+    generator.summary()
+
+    # budowanie modelu sieci współzawodniczącej = generatora+dyskryminatora
+    # zamrożenie wag dyskryminatora podczas trenowania sieci oponenta
+    discriminator.trainable = False
+    adversarial = Model(inputs,
+                        discriminator(generator(inputs)),
+                        name=model_name)
+    adversarial.compile(loss=wasserstein_loss,
+                        optimizer=optimizer,
+                        metrics=['accuracy'])
+    adversarial.summary()
+
+    # uczenie dyskryminatora i sieci
+    models = (generator, discriminator, adversarial)
+    params = (batch_size,
+              latent_size,
+              n_critic,
+              clip_value,
+              train_steps,
+              model_name)
+    train(models, x_train, params)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    help_ = "Ładowanie modelu generatora z wytrenowanymi wagami z pliku h5"
+    parser.add_argument("-g", "--generator", help=help_)
+    args = parser.parse_args()
+    if args.generator:
+        generator = load_model(args.generator)
+        gan.test_generator(generator)
+    else:
+        build_and_train_models()

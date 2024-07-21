@@ -1,6 +1,9 @@
-'''Uczenie sieci WGAN na zbiorze MNIST z użyciem Keras
+'''Learning WGAN on the MNIST
 
-Uczenie sieci GAN z użyciem funkcji straty Wasserteina.
+Loss function' Wasserstain (in standard GAN we have the Jensen-Shannon loss function)
+Divergence function = distance function (between two probability distributions) p_g -> p_dane  (function that transforms the probability of data used in generator (noise) to the probability of real data) 
+
+
 Przebiega podobnie jak w przypadku DCGAN z wyjątkiem tego, że 
 na wyjściu jest liniowa funkcja aktywacji oraz używamy n_krytyka treningów dla sieci współzawodniczącej. Wagi dyskryminatora są przycinane by był spełniony warunek Lipschitza.
 

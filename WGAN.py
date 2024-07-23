@@ -30,8 +30,8 @@ import numpy as np
 import argparse
 
 import sys
-sys.path.append("..")
-import DCGAN as gan
+# sys.path.append("..")
+import gan
 
 def train(models, x_train, params):
     """Uczenie dyskryminatora i sieci współzawodniczącej
@@ -171,7 +171,7 @@ def build_and_train_models():
     # tworzenie modelu dyskryminatora
     inputs = Input(shape=input_shape, name='discriminator_input')
     # w WGAN użyto liniowej funkcji aktywacji
-    discriminator = gan.discriminator(inputs, activation='linear')
+    discriminator = gan.discriminator(inputs,activation = 'sigmoid')
     optimizer = RMSprop(lr=lr)
     # w WGAN używana jest funkcja straty Wassersteina
     discriminator.compile(loss=wasserstein_loss,

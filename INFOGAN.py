@@ -1,5 +1,4 @@
-'''Uczenie sieci infoGAN na zbiorze danych MNIST z użyciem Keras
-
+'''Learning infoGAN on  MNIST
 Ta wersja infoGAN jest podobna do DCGAN. Główną różnicą jest to, 
 że wektor 'z' generatora jest warunkowany przez etykietę OH by wygenerować specyficzny, fałszywy obraz. Dyskryminator jest uczony odróżniania obrazów prawdziwych od fałszywych i przewidywania odpowiadających im etykiet OH.
 

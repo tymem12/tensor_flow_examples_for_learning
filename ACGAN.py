@@ -46,7 +46,6 @@ def train(models, data, params):
         params (list): parametry sieci
     """
     # modele GAN
-
     generator, discriminator, adversarial = models
     # obrazy i ich etykiety OH
     x_train, y_train = data
@@ -67,6 +66,7 @@ def train(models, data, params):
           "Etykiety dla wygenerowanych obrazów: ",
           np.argmax(noise_label, axis=1))
 
+    # TRAINING DISCRIMINATOR
     for i in range(train_steps):
         # uczenie dyskryminatora dla 1 partii danych
         # 1 partia prawdziwych (etykieta = 1.0) i fałszywych obrazów (etykieta = 0.0)
@@ -84,7 +84,7 @@ def train(models, data, params):
         # losowy wybór etykiet OH
         fake_labels = np.eye(num_labels)[np.random.choice(num_labels,
                                                           batch_size)]
-        #generowanie fałszywych obrazów
+        #generowanie fałszywych obrazów (zależnych od wygenerowanych fałszywych "fake_labels")
         fake_images = generator.predict([noise, fake_labels])
         # prawdziwe+fałszywe obrazy = 1 partia danych uczących
         x = np.concatenate((real_images, fake_images))
@@ -104,6 +104,8 @@ def train(models, data, params):
         fmt += "lblloss: %f, srcacc: %f, lblacc: %f]" 
         log = fmt % (i, metrics[0], metrics[1], \
                 metrics[2], metrics[3], metrics[4])
+        
+        # TRAINIGNG GENERATOR: 
 
         # uczenie sieci współzawodniczącej na jednej partii danych
         # 1 partia fałszywych obrazów z etykietą = 1.0 oraz

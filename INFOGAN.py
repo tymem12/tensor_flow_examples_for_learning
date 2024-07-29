@@ -103,7 +103,7 @@ def train(models, data, params):
         inputs = [noise, fake_labels, fake_code1, fake_code2]
         fake_images = generator.predict(inputs)
 
-        # obraz prawdziwy+fałszywy = 1 partia danych uczących
+        # obraz prawdziwy+fałszywy = 1 partia danych uczących. Logika jest dokładnie taka sama jak przy ACGAn tylko mamy dodatkowo kody ukryte
         x = np.concatenate((real_images, fake_images))
         labels = np.concatenate((real_labels, fake_labels))
         codes1 = np.concatenate((real_code1, fake_code1))

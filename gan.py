@@ -7,13 +7,13 @@ generative adversarial networks." arXiv preprint arXiv:1511.06434 (2015).
 '''
 
 
-from tensorflow.keras.layers import Activation, Dense, Input
-from tensorflow.keras.layers import Conv2D, Flatten
-from tensorflow.keras.layers import Reshape, Conv2DTranspose
-from tensorflow.keras.layers import LeakyReLU
-from tensorflow.keras.layers import BatchNormalization
-from tensorflow.keras.layers import concatenate
-from tensorflow.keras.models import Model
+from keras.layers import Activation, Dense, Input
+from keras.layers import Conv2D, Flatten
+from keras.layers import Reshape, Conv2DTranspose
+from keras.layers import LeakyReLU
+from keras.layers import BatchNormalization
+from keras.layers import concatenate
+from keras.models import Model
 
 import numpy as np
 import math
@@ -272,7 +272,7 @@ def plot_images(generator,
     num_images = images.shape[0]
     image_size = images.shape[1]
     rows = int(math.sqrt(noise_input.shape[0]))
-    for 
+    # for 
 
     os.makedirs(model_name, exist_ok=True)
     filename = os.path.join(model_name, "%05d.png" % step)

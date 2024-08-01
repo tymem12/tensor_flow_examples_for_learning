@@ -44,12 +44,12 @@ def build_encoder(inputs, num_labels=10, feature1_dim=256):
     """ Konstruowanie modelu podsieci klasyfikatora (kodera)
 
     Dwie podsieci: 
-    1) Koder0: obraz na feature1 (pośrednia cecha niejawna)
-    2) Koder1: feature1 na etykiety
+    1) Koder0: obraz na feature1 (pośrednia cecha niejawna f_1r) vector cechy o rozmiarze 256
+    2) Koder1: feature1 na etykiety (y = f_2r) Jest to vector OH 
 
     # Argumenty
-        inputs (Layers): x — obrazy, feature1 — 
-            warstwa wyjściowa feature1 (cechy1)
+        inputs (Layers): x — obrazy, 
+        feature1 — warstwa wyjściowa feature1 (cechy1)
         num_labels (int): liczba klas etykiet
         feature1_dim (int): wymiarowość feature1
 
@@ -104,7 +104,7 @@ def build_generator(latent_codes, image_size, feature1_dim=256):
     """
 
     # kody niejawne i parametry sieci
-    labels, z0, z1, feature1 = latent_codes
+    labels, z0, z1, feature1 = latent_codes # (10, , 50, 256)
     # image_resize = image_size // 4
     # kernel_size = 5
     # layer_filters = [128, 64, 32, 1]
@@ -116,12 +116,12 @@ def build_generator(latent_codes, image_size, feature1_dim=256):
     x = BatchNormalization()(x)
     x = Dense(512, activation='relu')(x)
     x = BatchNormalization()(x)
-    fake_feature1 = Dense(feature1_dim, activation='relu')(x)
+    fake_feature1 = Dense(feature1_dim, activation='relu')(x) # gen1 to zwykła MLP z 256 wyjściami 
     # gen1: klasy i szum (feature2+z1) na feature1
     gen1 = Model(inputs, fake_feature1, name='gen1')
 
      # gen0: feature1+z0 na feature0 (obraz)
-    gen0 = gan.generator(feature1, image_size, codes=z0)
+    gen0 = gan.generator(feature1, image_size, codes=z0) # gen0 to gan z wejściem 256 i wyjściem którym jest obraz
 
     return gen0, gen1
 
@@ -151,8 +151,8 @@ def build_discriminator(inputs, z_dim=50):
                            name='feature1_source')(f1_source)
 
     # rekonstrukcja z1 (sieć Q1)
-    z1_recon = Dense(z_dim)(x) 
-    z1_recon = Activation('tanh', name='z1')(z1_recon)
+    z1_recon = Dense(z_dim)(x)  #z1 ma rozmiar 50, więc wynikiem jest vector o rozmiarze 50 
+    z1_recon = Activation('tanh', name='z1')(z1_recon) # po tanh mamy romziar 50 (zrekonstruowany szum z1)
     
     discriminator_outputs = [f1_source, z1_recon]
     dis1 = Model(inputs, discriminator_outputs, name='dis1')
@@ -203,19 +203,17 @@ def train(models, data, params):
         rand_indexes = np.random.randint(0, 
                                          train_size, 
                                          size=batch_size)
-        real_images = x_train[rand_indexes]
+        real_images = x_train[rand_indexes] #x_r = f_0r
         # prawdziwa feature1 (cecha 1) wyjścia koder0
-        real_feature1 = enc0.predict(real_images)
+        real_feature1 = enc0.predict(real_images) # f_1r
         # generowanie losowego 50-wymiarowego kodu niejawnego z1
-        real_z1 = np.random.normal(scale=0.5,
-                                   size=[batch_size, z_dim])
+        real_z1 = np.random.normal(scale=0.5, size=[batch_size, z_dim]) # z_1f, z_dim =  50
         # prawdziwe etykiety ze zbioru danych
         real_labels = y_train[rand_indexes]
 
         # generowanie fałszywej feature1 (cechy1) przez generator1 na
         # podstawie prawdziwych etykiet i 50-wymiarowego kodu niejawnego z1
-        fake_z1 = np.random.normal(scale=0.5,
-                                   size=[batch_size, z_dim])
+        fake_z1 = np.random.normal(scale=0.5,size=[batch_size, z_dim])
         fake_feature1 = gen1.predict([real_labels, fake_z1])
 
         # dane prawdziwe + fałszywe

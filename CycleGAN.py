@@ -1,5 +1,32 @@
 """Konstruowanie i uczenie sieci CycleGAN
 
+IMPORTANT INFO:
+G, F - generators X -> Y, and Y -> X
+D_x, D_y - discriminators
+
+The total loss of generator is:
+L_generaotr = lambda_1 * L_GAN + lambda_2 * L_cycle + lambda_3 * L_identity
+
+GAN LOSS (L_GAN):
+- standard loss for GAN that uses discriminator
+- use the MSE
+- two components for 2 generators
+- E_y_p... ((D_y(G(X)) -1)^2   so it is the MSE that check is the discriminator correctly recognize the fake and real data.
+Cycle Consistency LOSS (L_cycle):
+- responsible for making sure that F(G(X)) = X', would meet the condition X' == X (that if we use the output of generator G as the input of generator F, we should obtain the input of generator G)
+- The rule above works the same for Y (this loss has two components)
+- To calculate this we use the MAE that will check every pixel between X and X'
+
+Identity Mapping (L_identity):
+- To make sure that if we use the Y as the input to the G (that performs G : X -> Y) that we will obtain Y (nothing would be changed).
+- So basically we need to make sure that if we pass to the generator G the image that represent the output of generator G (doesn't need to be but would be enough if it will look like it), the image won't change (since it already represent the correct image)
+- It is also the MAE
+- We do it for generator G and generator F 
+
+
+WHAT IS PatchGAN:
+- Another version of cycle gan that instead of the 0/1 (fake/ real) value in the discriminator, we have the grid of values (based o the size of the image) between 0 and 1 
+
 Sieć CycleGAN jest siecią międzydomenową. Podobnie jak ma to miejsce w przypadku innych sieci GAN może być uczona w sposób nienadzorowany.
 
 CycleGAN jest złożona z dwóch generatorów (G oraz F) i dwóch dyskryminatorów.
@@ -12,6 +39,10 @@ Celem generatora G cyklu w przód jest nauczenie się jak zmylić docelowy gener
 
 Cykl wstecz poprawia wydajność sieci CycleGAN wykonując proces odwrotny do cyklu w przód. Realizuje odwzorowanie y' = G(x') = G(F(y)) gdzie x' jest przewidywanym wyjściem w domenie x. Źródłowy dyskryminator decyduje czy x' jest prawdziwy czy fałszywy.
 Celem generatora F w cyklu wstecz jest nauczenie się jak zmylić docelowy dyskryminator by uwierzył, że x' jest prawdziwy.
+
+
+
+
 
 References:
 [1]Zhu, Jun-Yan, et al. "Unpaired Image-to-Image Translation Using
@@ -433,7 +464,7 @@ def build_cyclegan(shapes,
                    iden_source,
                    iden_target]
     else:
-        loss = ['mse', 'mse', 'mae', 'mae']
+        loss = ['mse', 'mse', 'mae', 'mae']   # mae- Sprawdazmy czy F(G(x)) == x (absolute error bo odjemujemy pixel by pixel) analogicznie w drugą stronę F(G(y)) == y (to jest CYCLE CONSISTENCY)
         loss_weights = [1., 1., 10., 10.]
         inputs = [source_input, target_input]
         outputs = [preal_source,
